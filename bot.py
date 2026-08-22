@@ -17,13 +17,30 @@ class SchedulerBot(commands.Bot):
         await init_db()
         await self.load_extension("cogs.scheduling")
         await self._register_persistent_views()
+        await self._sync_commands()
 
-        if config.GUILD_ID:
-            guild = discord.Object(id=int(config.GUILD_ID))
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-        else:
-            await self.tree.sync()
+    async def _sync_commands(self):
+        try:
+            if config.GUILD_ID:
+                guild = discord.Object(id=int(config.GUILD_ID))
+                self.tree.copy_global_to(guild=guild)
+                await self.tree.sync(guild=guild)
+                print(f"Synced commands to guild {config.GUILD_ID}")
+            else:
+                await self.tree.sync()
+                print("Synced commands globally")
+        except discord.Forbidden:
+            print(
+                "WARNING: Command sync failed with 403 Missing Access. "
+                "This usually means either:\n"
+                "  1) GUILD_ID doesn't match a server the bot is actually in, or\n"
+                "  2) the bot was invited without the 'applications.commands' scope.\n"
+                "Re-invite the bot with an OAuth2 URL that includes BOTH the 'bot' "
+                "and 'applications.commands' scopes. The bot will still start and "
+                "run reminders/DMs, but slash commands won't appear until this is fixed."
+            )
+        except Exception as e:
+            print(f"WARNING: Command sync failed: {e}")
 
     async def _register_persistent_views(self):
         """Re-attach Start/End Shift button views on startup so buttons sent
