@@ -4,6 +4,7 @@ from discord.ext import commands
 import config
 from database import get_db, init_db
 from views import EndShiftView, StartShiftView
+from ticket_views import TicketControlView, TicketPanelView
 
 intents = discord.Intents.default()
 intents.members = True  # needed to resolve Members from user IDs / DM them
@@ -16,6 +17,7 @@ class SchedulerBot(commands.Bot):
     async def setup_hook(self):
         await init_db()
         await self.load_extension("cogs.scheduling")
+        await self.load_extension("cogs.tickets")
         await self._register_persistent_views()
         await self._sync_commands()
 
@@ -32,19 +34,13 @@ class SchedulerBot(commands.Bot):
         except discord.Forbidden:
             print(
                 "WARNING: Command sync failed with 403 Missing Access. "
-                "This usually means either:\n"
-                "  1) GUILD_ID doesn't match a server the bot is actually in, or\n"
-                "  2) the bot was invited without the 'applications.commands' scope.\n"
                 "Re-invite the bot with an OAuth2 URL that includes BOTH the 'bot' "
-                "and 'applications.commands' scopes. The bot will still start and "
-                "run reminders/DMs, but slash commands won't appear until this is fixed."
+                "and 'applications.commands' scopes, and confirm GUILD_ID is correct."
             )
         except Exception as e:
             print(f"WARNING: Command sync failed: {e}")
 
     async def _register_persistent_views(self):
-        """Re-attach Start/End Shift button views on startup so buttons sent
-        before a restart keep working."""
         db = get_db()
 
         cur = await db.execute(
@@ -59,6 +55,9 @@ class SchedulerBot(commands.Bot):
         )
         for row in await cur.fetchall():
             self.add_view(EndShiftView(row["id"]))
+
+        self.add_view(TicketPanelView())
+        self.add_view(TicketControlView())
 
 
 bot = SchedulerBot()
