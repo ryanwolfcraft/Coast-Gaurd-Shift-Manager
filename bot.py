@@ -1,0 +1,62 @@
+import discord
+from discord.ext import commands
+
+import config
+from database import get_db, init_db
+from views import EndShiftView, StartShiftView
+
+intents = discord.Intents.default()
+intents.members = True  # needed to resolve Members from user IDs / DM them
+
+
+class SchedulerBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix="!", intents=intents)
+
+    async def setup_hook(self):
+        await init_db()
+        await self.load_extension("cogs.scheduling")
+        await self._register_persistent_views()
+
+        if config.GUILD_ID:
+            guild = discord.Object(id=int(config.GUILD_ID))
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+        else:
+            await self.tree.sync()
+
+    async def _register_persistent_views(self):
+        """Re-attach Start/End Shift button views on startup so buttons sent
+        before a restart keep working."""
+        db = get_db()
+
+        cur = await db.execute(
+            "SELECT id FROM schedules WHERE status='applied' AND start_prompt_sent=1 "
+            "AND started_at IS NULL AND reminders_stopped=0"
+        )
+        for row in await cur.fetchall():
+            self.add_view(StartShiftView(row["id"]))
+
+        cur = await db.execute(
+            "SELECT id FROM schedules WHERE status='applied' AND end_prompt_sent=1 AND ended_at IS NULL"
+        )
+        for row in await cur.fetchall():
+            self.add_view(EndShiftView(row["id"]))
+
+
+bot = SchedulerBot()
+
+
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user} ({bot.user.id})")
+
+
+def main():
+    if not config.DISCORD_TOKEN:
+        raise RuntimeError("DISCORD_TOKEN is not set. Add it to your .env or Railway variables.")
+    bot.run(config.DISCORD_TOKEN)
+
+
+if __name__ == "__main__":
+    main()
