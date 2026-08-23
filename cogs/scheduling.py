@@ -13,6 +13,8 @@ REMINDER_INTERVAL_SECONDS = 300      # 5 minutes between "you haven't started" D
 ESCALATION_AFTER_SECONDS = 1800      # 30 minutes -> DM the escalation user
 STOP_AFTER_SECONDS = 3600            # 30 more minutes of reminders, then stop (60 min total)
 
+STAFF_ROLE_ID = config.TICKET_STAFF_ROLE_ID  # 1540422846902173716
+
 
 class ScheduleCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -45,7 +47,7 @@ class ScheduleCog(commands.Cog):
         date="Date, e.g. 2025-01-30",
     )
     @app_commands.rename(starting_time="starting-time", ending_time="ending-time")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.checks.has_role(STAFF_ROLE_ID)
     async def draftschedule(
         self,
         interaction: discord.Interaction,
@@ -96,7 +98,7 @@ class ScheduleCog(commands.Cog):
 
     @app_commands.command(name="draftscheduleedit", description="Edit one of a user's existing applied shifts")
     @app_commands.describe(user="User whose schedule to edit")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.checks.has_role(STAFF_ROLE_ID)
     async def draftscheduleedit(self, interaction: discord.Interaction, user: discord.Member):
         db = get_db()
         cur = await db.execute(
@@ -119,7 +121,7 @@ class ScheduleCog(commands.Cog):
 
     @app_commands.command(name="deleteschedule", description="Delete one of a user's existing applied shifts")
     @app_commands.describe(user="User whose schedule to delete")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.checks.has_role(STAFF_ROLE_ID)
     async def deleteschedule(self, interaction: discord.Interaction, user: discord.Member):
         db = get_db()
         cur = await db.execute(
@@ -141,7 +143,7 @@ class ScheduleCog(commands.Cog):
     # ----------------------------------------------------------------
 
     @app_commands.command(name="applyedits", description="Apply all drafted schedule edits")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.checks.has_role(STAFF_ROLE_ID)
     async def applyedits(self, interaction: discord.Interaction):
         db = get_db()
         cur = await db.execute("SELECT * FROM pending_edits ORDER BY id")
@@ -224,7 +226,7 @@ class ScheduleCog(commands.Cog):
 
     @app_commands.command(name="schedules", description="View upcoming applied schedules")
     @app_commands.describe(user="Optional: only show this user's schedule")
-    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.checks.has_role(STAFF_ROLE_ID)
     async def schedules(self, interaction: discord.Interaction, user: discord.Member = None):
         db = get_db()
         now = datetime.now(timezone.utc).isoformat()
@@ -397,7 +399,7 @@ class ScheduleCog(commands.Cog):
     @applyedits.error
     @schedules.error
     async def on_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        if isinstance(error, app_commands.MissingPermissions):
+        if isinstance(error, app_commands.MissingRole):
             msg = "You don't have permission to use this command."
         else:
             msg = f"Something went wrong: {error}"
