@@ -217,7 +217,8 @@ class ScheduleCog(commands.Cog):
         await db.commit()
 
         await interaction.followup.send(f"Applied {applied_count} edit(s).", ephemeral=True)
-            # ----------------------------------------------------------------
+
+    # ----------------------------------------------------------------
     # /schedules
     # ----------------------------------------------------------------
 
@@ -264,27 +265,31 @@ class ScheduleCog(commands.Cog):
                 f"**{time_utils.fmt(row['end_time'])}**{status}"
             )
 
-        # Discord embed descriptions cap at 4096 chars; fields cap at 1024,
-        # so chunk into fields of a handful of lines each to stay safe.
         chunk = []
         chunk_len = 0
         field_index = 1
         for line in lines:
             if chunk_len + len(line) + 1 > 1000:
-                embed.add_field(name="\u200b" if field_index > 1 else "Upcoming Shifts", value="\n".join(chunk), inline=False)
+                embed.add_field(
+                    name="\u200b" if field_index > 1 else "Upcoming Shifts",
+                    value="\n".join(chunk),
+                    inline=False,
+                )
                 chunk, chunk_len = [], 0
                 field_index += 1
             chunk.append(line)
             chunk_len += len(line) + 1
         if chunk:
-            embed.add_field(name="\u200b" if field_index > 1 else "Upcoming Shifts", value="\n".join(chunk), inline=False)
+            embed.add_field(
+                name="\u200b" if field_index > 1 else "Upcoming Shifts",
+                value="\n".join(chunk),
+                inline=False,
+            )
 
         if len(rows) > 25:
             embed.set_footer(text=f"Showing 25 of {len(rows)} upcoming shifts.")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    
 
     # ----------------------------------------------------------------
     # Background loop: reminders, start/end prompts, escalation
@@ -391,7 +396,6 @@ class ScheduleCog(commands.Cog):
     @deleteschedule.error
     @applyedits.error
     @schedules.error
-    async def on_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
     async def on_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
             msg = "You don't have permission to use this command."
