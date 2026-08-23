@@ -217,6 +217,74 @@ class ScheduleCog(commands.Cog):
         await db.commit()
 
         await interaction.followup.send(f"Applied {applied_count} edit(s).", ephemeral=True)
+            # ----------------------------------------------------------------
+    # /schedules
+    # ----------------------------------------------------------------
+
+    @app_commands.command(name="schedules", description="View upcoming applied schedules")
+    @app_commands.describe(user="Optional: only show this user's schedule")
+    @app_commands.default_permissions(manage_guild=True)
+    async def schedules(self, interaction: discord.Interaction, user: discord.Member = None):
+        db = get_db()
+        now = datetime.now(timezone.utc).isoformat()
+
+        if user is not None:
+            cur = await db.execute(
+                "SELECT * FROM schedules WHERE status='applied' AND user_id=? AND end_time >= ? "
+                "ORDER BY start_time",
+                (str(user.id), now),
+            )
+        else:
+            cur = await db.execute(
+                "SELECT * FROM schedules WHERE status='applied' AND end_time >= ? ORDER BY start_time",
+                (now,),
+            )
+        rows = await cur.fetchall()
+
+        title = f"Schedule — {user.display_name}" if user else "Schedule — All Staff"
+        embed = discord.Embed(title=title, color=discord.Color(0x2C2F33))
+
+        if not rows:
+            embed.description = "There are no upcoming shifts."
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        lines = []
+        for row in rows[:25]:
+            status_bits = []
+            if row["started_at"] and not row["ended_at"]:
+                status_bits.append("in progress")
+            elif row["ended_at"]:
+                status_bits.append("completed")
+            status = f" *({', '.join(status_bits)})*" if status_bits else ""
+
+            prefix = "" if user else f"<@{row['user_id']}> — "
+            lines.append(
+                f"{prefix}**{time_utils.fmt(row['start_time'])}** → "
+                f"**{time_utils.fmt(row['end_time'])}**{status}"
+            )
+
+        # Discord embed descriptions cap at 4096 chars; fields cap at 1024,
+        # so chunk into fields of a handful of lines each to stay safe.
+        chunk = []
+        chunk_len = 0
+        field_index = 1
+        for line in lines:
+            if chunk_len + len(line) + 1 > 1000:
+                embed.add_field(name="\u200b" if field_index > 1 else "Upcoming Shifts", value="\n".join(chunk), inline=False)
+                chunk, chunk_len = [], 0
+                field_index += 1
+            chunk.append(line)
+            chunk_len += len(line) + 1
+        if chunk:
+            embed.add_field(name="\u200b" if field_index > 1 else "Upcoming Shifts", value="\n".join(chunk), inline=False)
+
+        if len(rows) > 25:
+            embed.set_footer(text=f"Showing 25 of {len(rows)} upcoming shifts.")
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    
 
     # ----------------------------------------------------------------
     # Background loop: reminders, start/end prompts, escalation
@@ -322,6 +390,8 @@ class ScheduleCog(commands.Cog):
     @draftscheduleedit.error
     @deleteschedule.error
     @applyedits.error
+    @schedules.error
+    async def on_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
     async def on_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
             msg = "You don't have permission to use this command."
