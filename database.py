@@ -1,3 +1,5 @@
+import os
+
 import aiosqlite
 import config
 
@@ -41,6 +43,9 @@ _db: aiosqlite.Connection | None = None
 
 async def init_db() -> aiosqlite.Connection:
     global _db
+    db_dir = os.path.dirname(config.DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     _db = await aiosqlite.connect(config.DB_PATH)
     _db.row_factory = aiosqlite.Row
     await _db.executescript(SCHEMA)
