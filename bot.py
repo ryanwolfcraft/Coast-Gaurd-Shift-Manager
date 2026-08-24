@@ -5,6 +5,7 @@ import config
 from database import get_db, init_db
 from views import EndShiftView, StartShiftView
 from ticket_views import TicketControlView, TicketPanelView
+from public_ticket_views import PublicTicketPanelView, PublicTicketControlView, ALL_PUBLIC_TICKET_TYPE_KEYS
 
 intents = discord.Intents.default()
 intents.members = True  # needed to resolve Members from user IDs / DM them
@@ -18,6 +19,7 @@ class SchedulerBot(commands.Bot):
         await init_db()
         await self.load_extension("cogs.scheduling")
         await self.load_extension("cogs.tickets")
+        await self.load_extension("cogs.public_tickets")
         await self._register_persistent_views()
         await self._sync_commands()
 
@@ -58,6 +60,10 @@ class SchedulerBot(commands.Bot):
 
         self.add_view(TicketPanelView())
         self.add_view(TicketControlView())
+
+        self.add_view(PublicTicketPanelView())
+        for ticket_type in ALL_PUBLIC_TICKET_TYPE_KEYS:
+            self.add_view(PublicTicketControlView(ticket_type))
 
 
 bot = SchedulerBot()
