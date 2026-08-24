@@ -20,6 +20,7 @@ class SchedulerBot(commands.Bot):
         await self.load_extension("cogs.scheduling")
         await self.load_extension("cogs.tickets")
         await self.load_extension("cogs.public_tickets")
+        await self.load_extension("cogs.results")
         await self._register_persistent_views()
         await self._sync_commands()
 
