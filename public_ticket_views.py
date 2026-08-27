@@ -82,7 +82,7 @@ class PublicTicketPanelView(discord.ui.View):
 
 async def create_public_ticket(interaction: discord.Interaction, ticket_type: str):
     guild = interaction.guild
-    category = guild.get_channel(config.TICKET_CATEGORY_ID)
+    category = guild.get_channel(config.PUBLIC_TICKET_CATEGORY_ID)
     if category is None:
         await interaction.response.send_message(
             "The ticket category could not be found. Please contact an administrator.",
